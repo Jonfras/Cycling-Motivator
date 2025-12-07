@@ -3,7 +3,7 @@ import MapContainerComponent from './components/MapContainer'
 import { haversineDistance, interpolatePosition, fetchRoute, getPositionAlongPath } from './utils'
 import { Bike, MapPin, Navigation, Trophy, ScanEye, Flag } from 'lucide-react'
 
-import { Users, Plus, Upload, X } from 'lucide-react'
+import { Users, Plus, Upload, X, Settings, Trash2, Edit2 } from 'lucide-react'
 
 // Default profiles if none exist
 const DEFAULT_PROFILES = [
@@ -16,8 +16,11 @@ function App() {
   const [profiles, setProfiles] = useState([]);
 
   const [showNewProfileForm, setShowNewProfileForm] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState(null); // ID of profile being edited
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfilePhoto, setNewProfilePhoto] = useState(null);
+
+  const [isAdminMode, setIsAdminMode] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(null)
 
@@ -35,43 +38,79 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
 
   // Load profiles from Supabase at start
+  const fetchProfiles = async () => {
+    const { data, error } = await supabase.from('profiles').select('*').order('name');
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      setProfiles(DEFAULT_PROFILES);
+    } else {
+      setProfiles(data && data.length > 0 ? data : DEFAULT_PROFILES);
+    }
+  };
+
   useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data, error } = await supabase.from('profiles').select('*');
-      if (error) {
-        console.error('Error fetching profiles:', error);
-        setProfiles(DEFAULT_PROFILES);
-      } else {
-        setProfiles(data && data.length > 0 ? data : DEFAULT_PROFILES);
-      }
-    };
     fetchProfiles();
   }, []);
 
-  const handleCreateProfile = async () => {
+  const handleSaveProfile = async () => {
     if (!newProfileName.trim()) return;
 
-    const newProfile = {
-      id: `user-${Date.now()}`,
+    const profileData = {
       name: newProfileName,
-      color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Random color
-      photo: newProfilePhoto
+      photo: newProfilePhoto,
+      color: editingProfileId
+        ? profiles.find(p => p.id === editingProfileId)?.color
+        : `hsl(${Math.random() * 360}, 70%, 50%)`
     };
 
-    // Optimistic update
-    const updatedProfiles = [...profiles, newProfile];
-    setProfiles(updatedProfiles);
+    if (editingProfileId) {
+      // Update existing
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', editingProfileId);
 
-    // Save to Supabase
-    const { error } = await supabase.from('profiles').insert([newProfile]);
-    if (error) {
-      console.error('Error creating profile:', error);
-      // Could revert state here if needed
+      if (error) console.error('Error updating profile:', error);
+
+    } else {
+      // Create new
+      const newProfile = {
+        id: `user-${Date.now()}`,
+        ...profileData
+      };
+      const { error } = await supabase.from('profiles').insert([newProfile]);
+      if (error) console.error('Error creating profile:', error);
     }
+
+    // Refresh list
+    await fetchProfiles();
 
     setNewProfileName('');
     setNewProfilePhoto(null);
+    setEditingProfileId(null);
     setShowNewProfileForm(false);
+  };
+
+  const startEditProfile = (profile) => {
+    setEditingProfileId(profile.id);
+    setNewProfileName(profile.name);
+    setNewProfilePhoto(profile.photo);
+    setShowNewProfileForm(true);
+  };
+
+  const handleDeleteProfile = async (id, e) => {
+    e.stopPropagation(); // Prevent selecting the profile
+    if (!window.confirm("Wirklich löschen? Alle Daten gehen verloren.")) return;
+
+    // Delete user state first (foreign key constraint)
+    await supabase.from('user_state').delete().eq('user_id', id);
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+
+    if (error) {
+      console.error('Error deleting profile:', error);
+    } else {
+      await fetchProfiles();
+    }
   };
 
   const handlePhotoUpload = (e) => {
@@ -269,8 +308,8 @@ function App() {
         <div style={{ height: '100vh', width: '100vw', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: 'var(--bg-surface)', padding: '40px', borderRadius: 'var(--radius-lg)', border: 'var(--glass-border)', width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '2rem', margin: 0 }}>Neuer Fahrer</h2>
-              <button onClick={() => setShowNewProfileForm(false)} style={{ background: 'transparent', padding: '10px' }}><X size={32} /></button>
+              <h2 style={{ fontSize: '2rem', margin: 0 }}>{editingProfileId ? 'Profil bearbeiten' : 'Neuer Fahrer'}</h2>
+              <button onClick={() => { setShowNewProfileForm(false); setEditingProfileId(null); setNewProfileName(''); setNewProfilePhoto(null); }} style={{ background: 'transparent', padding: '10px' }}><X size={32} /></button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -300,8 +339,8 @@ function App() {
               </div>
             </div>
 
-            <button className="primary" onClick={handleCreateProfile} style={{ padding: '20px', fontSize: '1.5rem', marginTop: '20px' }} disabled={!newProfileName}>
-              Erstellen
+            <button className="primary" onClick={handleSaveProfile} style={{ padding: '20px', fontSize: '1.5rem', marginTop: '20px' }} disabled={!newProfileName}>
+              {editingProfileId ? 'Speichern' : 'Erstellen'}
             </button>
           </div>
         </div>
@@ -309,7 +348,16 @@ function App() {
     }
 
     return (
-      <div style={{ height: '100vh', width: '100vw', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ height: '100vh', width: '100vw', background: 'var(--bg-app)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', position: 'relative' }}>
+
+        {/* Admin Toggle */}
+        <button
+          onClick={() => setIsAdminMode(!isAdminMode)}
+          style={{ position: 'absolute', top: '20px', right: '20px', background: isAdminMode ? 'var(--brand-primary)' : 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '50%', border: 'none', transition: 'all 0.3s' }}
+        >
+          <Settings size={30} color={isAdminMode ? 'black' : 'white'} />
+        </button>
+
         <div style={{ textAlign: 'center', marginBottom: '60px' }}>
           <Bike size={80} className="text-brand" style={{ marginBottom: '20px' }} />
           <h1 style={{ fontSize: '3rem', fontWeight: '800', background: 'var(--brand-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
@@ -320,45 +368,66 @@ function App() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px', width: '100%', maxWidth: '1000px' }}>
           {profiles.map(profile => (
-            <button
-              key={profile.id}
-              onClick={() => setCurrentUser(profile)}
-              style={{
-                background: 'var(--bg-surface)',
-                border: 'var(--glass-border)',
-                padding: '40px',
-                borderRadius: 'var(--radius-lg)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '20px',
-                cursor: 'pointer',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                boxShadow: 'var(--shadow-lg)'
-              }}
-              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-5px)'}
-              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              <div style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: '50%',
-                background: profile.photo ? 'transparent' : profile.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: `0 0 20px ${profile.color} 60`,
-                overflow: 'hidden',
-                border: profile.photo ? `3px solid ${profile.color} ` : 'none'
-              }}>
-                {profile.photo ? (
-                  <img src={profile.photo} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <Users size={60} color="#0f172a" />
-                )}
-              </div>
-              <span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{profile.name}</span>
-            </button>
+            <div key={profile.id} style={{ position: 'relative' }}>
+              <button
+                onClick={() => !isAdminMode && setCurrentUser(profile)}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: 'var(--glass-border)',
+                  padding: '40px',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '20px',
+                  cursor: isAdminMode ? 'default' : 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: 'var(--shadow-lg)',
+                  width: '100%',
+                  opacity: isAdminMode ? 0.8 : 1
+                }}
+                onMouseOver={e => !isAdminMode && (e.currentTarget.style.transform = 'translateY(-5px)')}
+                onMouseOut={e => !isAdminMode && (e.currentTarget.style.transform = 'translateY(0)')}
+              >
+                <div style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  background: profile.photo ? 'transparent' : profile.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 0 20px ${profile.color}60`,
+                  overflow: 'hidden',
+                  border: profile.photo ? `3px solid ${profile.color}` : 'none'
+                }}>
+                  {profile.photo ? (
+                    <img src={profile.photo} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <Users size={60} color="#0f172a" />
+                  )}
+                </div>
+                <span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{profile.name}</span>
+              </button>
+
+              {/* Admin Controls */}
+              {isAdminMode && (
+                <div style={{ position: 'absolute', top: '-10px', right: '-10px', display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => startEditProfile(profile)}
+                    style={{ background: '#3b82f6', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                  >
+                    <Edit2 size={20} color="white" />
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteProfile(profile.id, e)}
+                    style={{ background: '#ef4444', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                  >
+                    <Trash2 size={20} color="white" />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
 
           {/* Add New Profile Button */}
