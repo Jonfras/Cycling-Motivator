@@ -6,9 +6,7 @@ import { Bike, MapPin, Navigation, Trophy, ScanEye, Flag } from 'lucide-react'
 import { Users, Plus, Upload, X, Settings, Trash2, Edit2 } from 'lucide-react'
 
 // Default profiles if none exist
-const DEFAULT_PROFILES = [
-  { id: 'user1', name: 'Fahrer 1', color: '#22d3ee', photo: null },
-];
+const DEFAULT_PROFILES = [];
 
 import { supabase } from './supabaseClient'
 
@@ -353,7 +351,7 @@ function App() {
         {/* Admin Toggle */}
         <button
           onClick={() => setIsAdminMode(!isAdminMode)}
-          style={{ position: 'absolute', top: '20px', right: '20px', background: isAdminMode ? 'var(--brand-primary)' : 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '50%', border: 'none', transition: 'all 0.3s' }}
+          style={{ position: 'absolute', top: '20px', right: '60px', background: isAdminMode ? 'var(--brand-primary)' : 'rgba(255,255,255,0.1)', padding: '15px', borderRadius: '50%', border: 'none', transition: 'all 0.3s', zIndex: 100 }}
         >
           <Settings size={30} color={isAdminMode ? 'black' : 'white'} />
         </button>
@@ -384,7 +382,8 @@ function App() {
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   boxShadow: 'var(--shadow-lg)',
                   width: '100%',
-                  opacity: isAdminMode ? 0.8 : 1
+                  opacity: isAdminMode ? 0.7 : 1,
+                  filter: isAdminMode ? 'grayscale(0.5)' : 'none'
                 }}
                 onMouseOver={e => !isAdminMode && (e.currentTarget.style.transform = 'translateY(-5px)')}
                 onMouseOut={e => !isAdminMode && (e.currentTarget.style.transform = 'translateY(0)')}
@@ -412,18 +411,20 @@ function App() {
 
               {/* Admin Controls */}
               {isAdminMode && (
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', display: 'flex', gap: '10px' }}>
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', gap: '20px', zIndex: 10 }}>
                   <button
                     onClick={() => startEditProfile(profile)}
-                    style={{ background: '#3b82f6', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                    style={{ background: 'white', border: 'none', borderRadius: '12px', width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
+                    title="Bearbeiten"
                   >
-                    <Edit2 size={20} color="white" />
+                    <Edit2 size={32} color="#3b82f6" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteProfile(profile.id, e)}
-                    style={{ background: '#ef4444', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+                    style={{ background: 'white', border: 'none', borderRadius: '12px', width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
+                    title="Löschen"
                   >
-                    <Trash2 size={20} color="white" />
+                    <Trash2 size={32} color="#ef4444" />
                   </button>
                 </div>
               )}
