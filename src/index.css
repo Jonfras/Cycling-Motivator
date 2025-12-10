@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import 'leaflet-geosearch/dist/geosearch.css';
 
 :root {
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -136,4 +137,43 @@ button:active {
   height: 100%;
   background: var(--bg-app);
   z-index: 0;
+}
+
+/* Layer Control Theme */
+.leaflet-control-layers {
+  background: var(--bg-surface-solid) !important;
+  color: var(--text-primary) !important;
+  border: var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  font-family: var(--font-family) !important;
+}
+
+.leaflet-control-layers-toggle {
+  filter: invert(1);
+  /* Make the black icon white */
+}
+
+.leaflet-control-layers-expanded {
+  padding: 12px 16px !important;
+  background: var(--bg-surface-solid) !important;
+}
+
+.leaflet-control-layers-separator {
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Force absolute position for the search bar (form container) */
+form.leaflet-control-geosearch {
+  position: absolute !important;
+  top: 140px !important;
+  left: 20px !important;
+  z-index: 1000 !important;
+  width: 300px !important;
+  margin: 0 !important;
+}
+
+/* Also ensure the container wrapping it doesn't interfere if present */
+.leaflet-top.leaflet-left .leaflet-control-geosearch {
+  margin-top: 0 !important;
 }

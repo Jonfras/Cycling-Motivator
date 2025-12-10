@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, LayersControl, useMap } from 'react-leaflet'
 import { useState, useEffect } from 'react'
 import L from 'leaflet'
 import icon from 'leaflet/dist/images/marker-icon.png'
@@ -6,6 +6,7 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png'
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Flag, Bike } from 'lucide-react';
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch'
 
 // Fix for default marker icon in React Leaflet
 let DefaultIcon = L.icon({
@@ -73,15 +74,53 @@ function MapEvents({ onMapClick }) {
     return null;
 }
 
+const SearchControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const provider = new OpenStreetMapProvider();
+        const searchControl = new GeoSearchControl({
+            provider,
+            style: 'bar',
+            showMarker: true,
+            showPopup: false,
+            autoClose: true,
+            retainZoomLevel: false,
+            animateZoom: true,
+            keepResult: true,
+            searchLabel: 'Suche nach Orten...'
+        });
+        map.addControl(searchControl);
+        return () => map.removeControl(searchControl);
+    }, [map]);
+    return null;
+}
+
 const MapContainerComponent = ({ start, end, path, currentPosition, onMapClick, onMarkerClick }) => {
     const [position, setPosition] = useState([48.20967, 13.48831]) // Default: Ried im Innkreis
 
     return (
         <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
+            <LayersControl position="bottomright">
+                <LayersControl.BaseLayer checked name="Light">
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer name="Satellite">
+                    <TileLayer
+                        attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer name="Dark">
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    />
+                </LayersControl.BaseLayer>
+            </LayersControl>
+            <SearchControl />
             <MapEvents onMapClick={onMapClick} />
             {start && (
                 <Marker
